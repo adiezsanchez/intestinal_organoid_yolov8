@@ -15,6 +15,7 @@ Tools to analyze intestinal organoid imaging at the Martin-Alonso/Oudhoff lab us
 
 4. Once your virtual environment is ready you can copy all your folders containing the images from EVOS inside the data directory using the following structure:
 
+    <code>
     intestinal_organoid_YOLOv8/   #Primary data folder for the project
     ├── data/                     #All input data is stored here. 
     │   ├── Plate_01/
@@ -26,6 +27,7 @@ Tools to analyze intestinal organoid imaging at the Martin-Alonso/Oudhoff lab us
     │   │   ├── P2_Plate_M_p00_z01_0_A01f00d0.TIF
     │   │   └── ...
     │   └── ...
+    </code>
 
 5. The easiest way to interact with the analysis code is via Jupyter Lab. To launch a jupyter lab server run the following commands:
     <code>mamba activate int_organoids</code>
