@@ -53,6 +53,7 @@ def read_images(directory_path):
 
     return images_per_well
 
+
 def min_intensity_projection(image_paths):
     """Takes a collection of image paths containing one z-stack per file and performs minimum intensity projection"""
     # Load images from the specified paths
@@ -61,70 +62,87 @@ def min_intensity_projection(image_paths):
     stack = io.concatenate_images(image_collection)
     # Perform minimum intensity projection along the z-axis (axis=0)
     min_proj = np.min(stack, axis=0)
-    
+
     return min_proj
+
 
 def save_min_projection_imgs(images_per_well, output_dir="./output/MIN_projections"):
     """Takes a images_per_well from read_images as input, performs minimum intensity projection and saves the resulting image on a per well basis"""
     for well_id, files in images_per_well.items():
         # Perform minimum intensity projection of the stack stored under well_id key
         min_proj = min_intensity_projection(images_per_well[well_id])
-        
+
         # Create a directory to store the tif files if it doesn't exist
         Path(output_dir).mkdir(parents=True, exist_ok=True)
-        
+
         # Construct the output file path
         output_path = os.path.join(output_dir, f"{well_id}.tif")
-        
+
         # Save the resulting minimum projection
         tifffile.imwrite(output_path, min_proj)
 
-def predict_masks(input_folder, model_dir="./models/GPU_1px_cle_eroded_labels.pt", conf_threshold=0.6, output_dir="./output/predictions"):
+
+def predict_masks(
+    input_folder,
+    model_dir="./models/GPU_1px_cle_eroded_labels.pt",
+    conf_threshold=0.6,
+    output_dir="./output/predictions",
+):
     """Takes a directory containing minimum intensity projections as input and outputs the predicted masks burnt-in on top of the input images"""
     # Define the directory containing your files
     directory_path = Path(input_folder)
-    
+
     # Load the pre-trained model you want to apply
     model = YOLO(model_dir)
-    
+
     # Loop through all input images (minimum intensity projections)
     for image_path in directory_path.glob("*.tif"):
-        
+
         # Get the filename without the extension
         filename = image_path.stem
-        
-        results = model.predict(image_path, conf=conf_threshold)  # Adjust confidence (conf) threshold
+
+        results = model.predict(
+            image_path, conf=conf_threshold
+        )  # Adjust confidence (conf) threshold
 
         im_array = results[0].plot(conf=False, labels=False, boxes=True, line_width=2)
-        
+
         # Create a directory to store the tif files if it doesn't exist
         Path(output_dir).mkdir(parents=True, exist_ok=True)
-        
+
         # Construct the output file path
         output_path = os.path.join(output_dir, f"{filename}.tif")
-        
+
         # Save the resulting minimum projection
         tifffile.imwrite(output_path, im_array)
-        
-def extract_stats(input_folder, model_dir="./models/GPU_1px_cle_eroded_labels.pt", conf_threshold=0.6, output_dir="./output/predictions"):
+
+
+def extract_stats(
+    input_folder,
+    model_dir="./models/GPU_1px_cle_eroded_labels.pt",
+    conf_threshold=0.6,
+    output_dir="./output/predictions",
+):
     """Takes a directory containing minimum intensity projections, performs inference and returns a df containing regionprops per object per class per well_id"""
     # Define the directory containing your files
     directory_path = Path(input_folder)
-    
+
     # Load the pre-trained model you want to apply
     model = YOLO(model_dir)
-    
+
     # Initialize a list to store the properties for all images
     all_props_list = []
-    
+
     # Loop through all input images (minimum intensity projections)
     for image_path in directory_path.glob("*.tif"):
-        
+
         # Get the filename without the extension
         filename = image_path.stem
 
         # Perform inference on the image stored in image_path
-        results = model.predict(image_path, conf=conf_threshold)  # Adjust confidence (conf) threshold
+        results = model.predict(
+            image_path, conf=conf_threshold
+        )  # Adjust confidence (conf) threshold
 
         # Access the first position in the resulting YOLO results list
         result = results[0]
@@ -143,10 +161,10 @@ def extract_stats(input_folder, model_dir="./models/GPU_1px_cle_eroded_labels.pt
         for mask, class_id in zip(extracted_masks, class_labels):
             class_name = result.names[class_id]  # Map class ID to class name
             masks_by_class[class_name].append(mask.cpu().numpy())
-            
+
         # for class_name, masks in masks_by_class.items():
-            # print(f"Class Name: {class_name}, Number of Masks: {len(masks)}")
-            
+        # print(f"Class Name: {class_name}, Number of Masks: {len(masks)}")
+
         # Initialize a list to store the properties
         props_list = []
 
@@ -172,15 +190,19 @@ def extract_stats(input_folder, model_dir="./models/GPU_1px_cle_eroded_labels.pt
                     # Add other properties as needed
 
                     # Append the properties and class name to the list
-                    props_list.append({'well_id': filename,
-                                    'Class Name': class_name,
-                                    'Area': area,
-                                    'Area_filled': area_filled,
-                                    'Perimeter': perimeter,
-                                    'Circularity': circularity,
-                                    'Eccentricity': eccentricity,
-                                    'Solidity': solidity})
-                    
+                    props_list.append(
+                        {
+                            "well_id": filename,
+                            "Class Name": class_name,
+                            "Area": area,
+                            "Area_filled": area_filled,
+                            "Perimeter": perimeter,
+                            "Circularity": circularity,
+                            "Eccentricity": eccentricity,
+                            "Solidity": solidity,
+                        }
+                    )
+
         # Extend all_props_list with the properties from this image
         all_props_list.extend(props_list)
 
@@ -189,6 +211,111 @@ def extract_stats(input_folder, model_dir="./models/GPU_1px_cle_eroded_labels.pt
 
     # Now props_df contains the properties and class names for all regions
     return all_props_df
+
+
+def copy_csv_results(results_directory):
+    """Copy all .csv files from each plate folder into a per_organoid_stats folder under results_directory"""
+
+    # Create an empty list to store the subdirectories within results_directory
+    subdirectories = []
+
+    # Iterate over subfolders in the results_directory and add them to subdirectories list
+    for subfolder in results_directory.iterdir():
+        if subfolder.is_dir():
+            subdirectories.append(subfolder.name)
+
+    # Create the destination folder to copy the .csv files contained in each subdir
+    try:
+        csv_results_path = os.path.join(results_directory, "per_organoid_stats")
+        os.makedirs(csv_results_path)
+    except FileExistsError:
+        print(f"Directory already exists: {csv_results_path}")
+
+    # Iterate over each subdirectory to scan and copy .csv files contained within
+    for subdir in subdirectories:
+        # Build the path to each of the subdirectories
+        subdirectory_path = Path(results_directory) / subdir
+
+        # Check if the subdirectory exists
+        if subdirectory_path.exists():
+            # Scan for .csv files in each subdirectory
+            for file_path in subdirectory_path.glob("*.csv"):
+                # Copy the file to the destination subfolder
+                shutil.copy2(file_path, csv_results_path)
+
+
+def extract_summary_stats(csv_path):
+    """Processes a per_organoid .csv results file counting the number of occurrences and calculate the average of each property returning a summary_stats_df"""
+    # Read the .csv into a pandas DataFrame
+    df = pd.read_csv(csv_path)
+
+    # Grouping and counting occurrences
+    grouped_counts = df.groupby(["well_id", "Class Name"]).size().unstack(fill_value=0)
+
+    # Specifying the columns to calculate the average for
+    columns_to_average = [
+        "Area",
+        "Area_filled",
+        "Perimeter",
+        "Circularity",
+        "Eccentricity",
+        "Solidity",
+    ]
+
+    # Grouping by 'well_id' and 'Class Name' and calculating the mean
+    average_values = (
+        df.groupby(["well_id", "Class Name"])[columns_to_average].mean().reset_index()
+    )
+
+    # Joining the counts back to the original dataframe
+    df_merged = average_values.merge(grouped_counts, on="well_id", how="left")
+
+    # Optionally, if you want to create a specific column for each count based on the class in each row
+    for class_name in grouped_counts.columns:
+        df_merged[class_name] = df_merged[class_name].where(
+            df_merged["Class Name"] == class_name, 0
+        )
+
+    # List of columns to update with their maximum value per well_id
+    columns_to_maximize = ["dead", "differentiated", "undifferentiated"]
+
+    # Apply transform to update each specified column with its max value per well_id
+    for column in columns_to_maximize:
+        df_merged[column] = df_merged.groupby("well_id")[column].transform("max")
+
+    # Renaming the columns
+    df_merged = df_merged.rename(
+        columns={
+            "dead": "nr_dead",
+            "differentiated": "nr_organoids",
+            "undifferentiated": "nr_spheroids",
+        }
+    )
+
+    # Calculate the dead to total ratio
+    df_merged["dead_ratio"] = df_merged["nr_dead"] / (
+        df_merged["nr_dead"] + df_merged["nr_organoids"] + df_merged["nr_spheroids"]
+    )
+
+    # Calculate the organoid to spheroid ratio
+    df_merged["organoid_ratio"] = df_merged["nr_organoids"] / (
+        df_merged["nr_organoids"] + df_merged["nr_spheroids"]
+    )
+
+    # Calculate the organoid to spheroid ratio
+    df_merged["spheroid_ratio"] = df_merged["nr_spheroids"] / (
+        df_merged["nr_organoids"] + df_merged["nr_spheroids"]
+    )
+
+    # Extract the plate_name from the csv_path
+    csv_path = Path(csv_path)
+    plate_name = csv_path.stem
+
+    # Adding the new column 'plate_name' to the left of df_merged
+    df_merged.insert(0, "plate_name", plate_name)
+
+    return df_merged
+
 
 def find_focus(images_per_well):
     """Processes all the images and extract the number of organoids in focus from each image"""
