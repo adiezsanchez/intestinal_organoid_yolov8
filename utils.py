@@ -317,6 +317,29 @@ def extract_summary_stats(csv_path):
     return df_merged
 
 
+def save_summary_stats(results_directory):
+    """Extracts summary stats from per object results and concatenates all df into a final_df (+save to disk as .csv) containing all plates data"""
+    # Define the directory containing the copied per_organoid_stats
+    csv_results_path = Path(os.path.join(results_directory, "per_organoid_stats"))
+
+    # Initialize an empty DataFrame to collect all summary dataframes
+    final_df = pd.DataFrame()
+
+    # Scan for .csv files in each subdirectory
+    for csv_path in csv_results_path.glob("*.csv"):
+        summary_df = extract_summary_stats(csv_path)
+        # Append the summary_df to the final_df
+        final_df = pd.concat([final_df, summary_df], ignore_index=True)
+
+    # Create the summary_stats directory if it doesn't exist
+    summary_stats_directory = Path(results_directory, "summary_stats")
+    summary_stats_directory.mkdir(parents=True, exist_ok=True)
+
+    # Save the final_df as a .csv file under the summary_stats directory
+    final_csv_path = summary_stats_directory / "summary_stats.csv"
+    final_df.to_csv(final_csv_path, index=False)
+
+
 def find_focus(images_per_well):
     """Processes all the images and extract the number of organoids in focus from each image"""
 
