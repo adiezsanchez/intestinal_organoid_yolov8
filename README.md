@@ -1,4 +1,4 @@
-<h1>Instance Segmentation of Intestinal organoids and Spheroids from BrightField images using YOLOv8 (ISIS-BF)</h1>
+<h1>Instance Segmentation of Intestinal organoids and Spheroids from BrightField images using YOLOv8 (ISIS-BF-YOLO)</h1>
 
 [![License](https://img.shields.io/pypi/l/napari-accelerated-pixel-and-object-classification.svg?color=green)](https://github.com/adiezsanchez/intestinal_organoid_yolov8/blob/main/LICENSE)
 [![Development Status](https://img.shields.io/pypi/status/napari-accelerated-pixel-and-object-classification.svg)](https://en.wikipedia.org/wiki/Software_release_life_cycle#Alpha)
@@ -9,9 +9,9 @@ This repository contains a number of tools to speed up the interpretation of ima
 
 1. This tool uses the previously mentioned naming convention to extract the well_id from each image ("A01"), scan through all z-planes ("z00") and perform a minimum intensity projection.
 
-2. Based on said projections a previously trained [YOLOv8 model](https://github.com/adiezsanchez/bf_intorg_YOLOv8_dev) predicts instances of 3 classes intestinal organoids: differentiated organoids, spheroids and dead/overgrown organoids.
+2. Based on said projections a previously trained [YOLOv8 model](https://github.com/adiezsanchez/bf_intorg_YOLOv8_dev) predicts instances of 3 classes of intestinal organoids: differentiated organoids, spheroids and dead/overgrown organoids.
 
-3. It extracts counts of each object on a per class basis and morphology measurements such as area, perimeter, circularity.
+3. It extracts counts of each object on a per class basis and morphology measurements such as area, perimeter, circularity and solidity.
 
 4. Finally it generates two plate views of the entire multiwell plate at high resolution for data exploration (minimum intensity projection and segmentation). Filenames **must contain the well_id identifier** in order for the scripts to work and plot the plate views.
 
@@ -35,22 +35,24 @@ This repository contains a number of tools to speed up the interpretation of ima
 
 5. Once your virtual environment is ready you can copy all your folders containing the images from EVOS inside the data directory using the following structure:
 
-<code>
-intestinal_organoid_YOLOv8/   #Primary data folder for the project
-├── data/                     #All input data is stored here. 
-│   ├── Plate_01/
-│   │   ├── P1_Plate_M_p00_z00_0_A01f00d0.TIF
-│   │   ├── P1_Plate_M_p00_z01_0_A01f00d0.TIF
-│   │   └── ...
-│   ├── Plate_02/
-│   │   ├── P2_Plate_M_p00_z00_0_A01f00d0.TIF
-│   │   ├── P2_Plate_M_p00_z01_0_A01f00d0.TIF
-│   │   └── ...
-│   └── ...
-</code>
+   <code>
+   intestinal_organoid_YOLOv8/   #Primary data folder for the project
+   ├── data/                     #All input data is stored here. 
+   │   ├── Plate_01/
+   │   │   ├── P1_Plate_M_p00_z00_0_A01f00d0.TIF
+   │   │   ├── P1_Plate_M_p00_z01_0_A01f00d0.TIF
+   │   │   └── ...
+   │   ├── Plate_02/
+   │   │   ├── P2_Plate_M_p00_z00_0_A01f00d0.TIF
+   │   │   ├── P2_Plate_M_p00_z01_0_A01f00d0.TIF
+   │   │   └── ...
+   │   └── ...
+   </code>
 
 6. The easiest way to interact with the analysis code is via Jupyter Lab. To launch a jupyter lab server run the following commands:
+
    <code>mamba activate int_organoids</code>
+
    <code>jupyter lab</code>
 
 7. Open 1_image_analysis.ipynb, define your username and desired resolution for the output plates and run all the cells.
