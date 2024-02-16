@@ -30,6 +30,7 @@ This repository contains a number of tools to speed up the interpretation of ima
 4. (optiona) If you want to automatically save the resulting .png graphs install kaleido in the venv using pip:
 
    <code>mamba activate int_organoids</code>
+
    <code>pip install kaleido</code>
 
 5. Once your virtual environment is ready you can copy all your folders containing the images from EVOS inside the data directory using the following structure:
