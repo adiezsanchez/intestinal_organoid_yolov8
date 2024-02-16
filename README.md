@@ -16,6 +16,7 @@ Tools to analyze intestinal organoid imaging at the Martin-Alonso/Oudhoff lab us
 4. (optiona) If you want to automatically save the resulting .png graphs install kaleido in the venv using pip:
 
    <code>mamba activate int_organoids</code>
+   
    <code>pip install kaleido</code>
 
 6. Once your virtual environment is ready you can copy all your folders containing the images from EVOS inside the data directory using the following structure:
@@ -35,7 +36,9 @@ Tools to analyze intestinal organoid imaging at the Martin-Alonso/Oudhoff lab us
     </code>
 
 7. The easiest way to interact with the analysis code is via Jupyter Lab. To launch a jupyter lab server run the following commands:
+   
     <code>mamba activate int_organoids</code>
+    
     <code>jupyter_lab</code>
 
-8. Open 1_image_analysis.ipynb, define your username and desired resolution for the output plates and run all the cells.
+9. Open 1_image_analysis.ipynb, define your username and desired resolution for the output plates and run all the cells.
