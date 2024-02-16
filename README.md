@@ -27,7 +27,7 @@ This repository contains a number of tools to speed up the interpretation of ima
 
    <code>mamba env create -f environment.yml</code>
 
-4. (optiona) If you want to automatically save the resulting .png graphs install kaleido in the venv using pip:
+4. (optional) If you want to automatically save the resulting .png graphs install kaleido in the venv using pip:
 
    <code>mamba activate int_organoids</code>
 
@@ -56,3 +56,5 @@ This repository contains a number of tools to speed up the interpretation of ima
    <code>jupyter lab</code>
 
 7. Open 1_image_analysis.ipynb, define your username and desired resolution for the output plates and run all the cells.
+
+8. You will find all the results under <code>.output/USERNAME</code>, to explore the extracted stats run 2_image_analysis.ipynb.
