@@ -4,17 +4,24 @@ import pandas as pd
 import numpy as np
 import math
 import tifffile
+from pathlib import Path
+
+# On Windows + pixi, Pillow/skimage may fail to resolve native DLLs unless
+# the environment's Library/bin directory is added to the DLL search path.
+if os.name == "nt":
+    conda_prefix = os.environ.get("CONDA_PREFIX")
+    if conda_prefix:
+        dll_dir = Path(conda_prefix) / "Library" / "bin"
+        if dll_dir.exists():
+            os.add_dll_directory(str(dll_dir))
+
 import pyclesperanto_prototype as cle  # version 0.24.1
 import napari_segment_blobs_and_things_with_membranes as nsbatwm  # version 0.3.6
-import matplotlib.pyplot as plt
-from matplotlib.colors import ListedColormap
-from pathlib import Path
 from tqdm import tqdm
 from skimage import measure, io
 from skimage.measure import regionprops
 from skimage.color import rgb2gray
 from apoc import ObjectSegmenter, ObjectClassifier
-from ultralytics import YOLO
 
 
 def read_images(directory_path):
@@ -89,6 +96,8 @@ def predict_masks(
     output_dir="./output/predictions",
 ):
     """Takes a directory containing minimum intensity projections as input and outputs the predicted masks burnt-in on top of the input images"""
+    from ultralytics import YOLO
+
     # Define the directory containing your files
     directory_path = Path(input_folder)
 
@@ -124,6 +133,8 @@ def extract_stats(
     output_dir="./output/predictions",
 ):
     """Takes a directory containing minimum intensity projections, performs inference and returns a df containing regionprops per object per class per well_id"""
+    from ultralytics import YOLO
+
     # Define the directory containing your files
     directory_path = Path(input_folder)
 
@@ -248,6 +259,7 @@ def extract_summary_stats(csv_path):
     """Processes a per_organoid .csv results file counting the number of occurrences and calculate the average of each property returning a summary_stats_df"""
     # Read the .csv into a pandas DataFrame
     df = pd.read_csv(csv_path)
+    df["Class Name"] = df["Class Name"].astype(str).str.strip().str.lower()
 
     # Grouping and counting occurrences
     grouped_counts = df.groupby(["well_id", "Class Name"]).size().unstack(fill_value=0)
@@ -279,6 +291,19 @@ def extract_summary_stats(csv_path):
     # List of columns to update with their maximum value per well_id
     columns_to_maximize = ["dead", "differentiated", "undifferentiated"]
 
+    # If a class is missing in a plate, create the count column with zeros
+    # so downstream transforms/ratios remain stable.
+    missing_class_columns = [
+        column for column in columns_to_maximize if column not in df_merged.columns
+    ]
+    if missing_class_columns:
+        print(
+            f"Warning: missing classes in {Path(csv_path).name}: {missing_class_columns}. "
+            "Defaulting counts to 0."
+        )
+        for column in missing_class_columns:
+            df_merged[column] = 0
+
     # Apply transform to update each specified column with its max value per well_id
     for column in columns_to_maximize:
         df_merged[column] = df_merged.groupby("well_id")[column].transform("max")
@@ -292,19 +317,18 @@ def extract_summary_stats(csv_path):
         }
     )
 
-    # Calculate the dead to total ratio
-    df_merged["dead_ratio"] = df_merged["nr_dead"] / (
-        df_merged["nr_dead"] + df_merged["nr_organoids"] + df_merged["nr_spheroids"]
-    )
+    total_count = df_merged["nr_dead"] + df_merged["nr_organoids"] + df_merged["nr_spheroids"]
+    live_count = df_merged["nr_organoids"] + df_merged["nr_spheroids"]
 
-    # Calculate the organoid to spheroid ratio
-    df_merged["organoid_ratio"] = df_merged["nr_organoids"] / (
-        df_merged["nr_organoids"] + df_merged["nr_spheroids"]
+    # Safe divisions avoid NaN/inf when no objects are detected in a well.
+    df_merged["dead_ratio"] = np.where(
+        total_count > 0, df_merged["nr_dead"] / total_count, 0
     )
-
-    # Calculate the organoid to spheroid ratio
-    df_merged["spheroid_ratio"] = df_merged["nr_spheroids"] / (
-        df_merged["nr_organoids"] + df_merged["nr_spheroids"]
+    df_merged["organoid_ratio"] = np.where(
+        live_count > 0, df_merged["nr_organoids"] / live_count, 0
+    )
+    df_merged["spheroid_ratio"] = np.where(
+        live_count > 0, df_merged["nr_spheroids"] / live_count, 0
     )
 
     # Extract the plate_name from the csv_path
@@ -485,6 +509,7 @@ def plot_plate(
     resolution, output_path, img_folder_path, show_fig=True, colormap="gray"
 ):
     """Plot images in a grid-like fashion according to the well_id position in the plate"""
+    import matplotlib.pyplot as plt
 
     # Initialize a dictionary to store images by rows (letters)
     image_dict = {}
@@ -727,6 +752,8 @@ def save_object_mask(segmented_organoids, output_directory):
 
 
 def random_cmap():
+    from matplotlib.colors import ListedColormap
+
     np.random.seed(42)
     cmap = ListedColormap(np.random.rand(256, 4))
     # value 0 should just be transparent
