@@ -1,0 +1,29 @@
+[project]
+name = "int_organoids"
+channels = ["pytorch", "nvidia", "conda-forge"]
+platforms = ["win-64"]
+
+[dependencies]
+python = "3.9.*"
+pytorch = "==2.5.0"
+pytorch-cuda = "12.1.*"
+torchvision = "==0.20.0"
+napari = "*"
+numpy = "*"
+pandas = "*"
+tifffile = "*"
+matplotlib = "*"
+tqdm = "*"
+scikit-image = "*"
+plotly = "*"
+pyclesperanto-prototype = "*"
+napari-segment-blobs-and-things-with-membranes = "*"
+apoc-backend = "*"
+jupyterlab = "*"
+ultralytics = "*"
+
+[tasks]
+lab = "jupyter lab"
+fix-pillow = "python -m pip install --no-deps --force-reinstall pillow==9.2.0"
+fix-opencv = "python -m pip install --no-deps --ignore-installed opencv-python==4.10.0.84"
+postfix-windows-dll = { depends-on = ["fix-pillow", "fix-opencv"] }
