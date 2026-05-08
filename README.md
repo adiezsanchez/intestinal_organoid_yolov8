@@ -1,4 +1,4 @@
-<h1>Instance Segmentation of Intestinal organoids and Spheroids from BrightField images using YOLOv8 (ISIS-BF-YOLO)</h1>
+<h1>Instance Segmentation of intestinal Organoids and Spheroids from BrightField images using YOLOv8 (ISiOS-BF-YOLO)</h1>
 
 [![License](https://img.shields.io/pypi/l/napari-accelerated-pixel-and-object-classification.svg?color=green)](https://github.com/adiezsanchez/intestinal_organoid_yolov8/blob/main/LICENSE)
 [![Development Status](https://img.shields.io/pypi/status/napari-accelerated-pixel-and-object-classification.svg)](https://en.wikipedia.org/wiki/Software_release_life_cycle#Alpha)
@@ -15,29 +15,13 @@ This repository contains a number of tools to speed up the interpretation of ima
 
 4. Finally it generates two plate views of the entire multiwell plate at high resolution for data exploration (minimum intensity projection and segmentation). Filenames **must contain the well_id identifier** in order for the scripts to work and plot the plate views.
 
-<h2>Instructions</h2>
+<h2>Input folder structure</h2>
 
-1. In order to run these Jupyter notebooks you will need to familiarize yourself with the use of Python virtual environments using Mamba. See instructions [here](https://biapol.github.io/blog/mara_lampert/getting_started_with_mambaforge_and_python/readme.html).
-
-2. Then you will need to create a virtual environment (venv) either using the following command or recreate the environment from the .yml file you can find in the envs folder:
-
-   <code>mamba create -n int_organoids python=3.9 devbio-napari cellpose pytorch torchvision plotly pyqt ultralytics python-kaleido -c conda-forge -c pytorch</code>
-
-3. To recreate the venv from the environment.yml file stored in the envs folder (recommended) navigate into the envs folder using <code>cd</code> in your console and then execute:
-
-   <code>mamba env create -f environment.yml</code>
-
-4. (optional) If you want to automatically save the resulting .png graphs install kaleido in the venv using pip:
-
-   <code>mamba activate int_organoids</code>
-
-   <code>pip install kaleido</code>
-
-5. Once your virtual environment is ready you can copy all your folders containing the images from EVOS inside the data directory using the following structure:
+You can copy all your folders containing the images from EVOS inside the data directory using the structure below. Alternatively point to a directory containing folders for each plate acquisition.
 
    <code>
    intestinal_organoid_YOLOv8/   #Primary data folder for the project
-   ├── data/                     #All input data is stored here. 
+   ├── data/                     #All input data can be copied here. 
    │   ├── Plate_01/
    │   │   ├── P1_Plate_M_p00_z00_0_A01f00d0.TIF
    │   │   ├── P1_Plate_M_p00_z01_0_A01f00d0.TIF
@@ -49,12 +33,80 @@ This repository contains a number of tools to speed up the interpretation of ima
    │   └── ...
    </code>
 
-6. The easiest way to interact with the analysis code is via Jupyter Lab. To launch a jupyter lab server run the following commands:
+<h2>How to install this tool? (Environment setup)</h2>
+
+> [!TIP]
+> In order to run these Jupyter notebooks and .py scripts you will need to familiarize yourself with the use of Python virtual environments, IDEs and Git. If you are not familiar with those concepts watch the [Before you start (Python, IDE and Git on Windows)](https://youtu.be/tzdFuxF2E3U) video, it will guide you through the necessary steps and cover all basic concepts.
+> 
+> TL;DR You are busy in the wet lab, skip to the Pixi section below.
+
+Once you have your developer stack ready you can simply clone this repository using:
+
+<code>git clone https://github.com/adiezsanchez/intestinal_organoid_yolov8</code>
+
+If you do not have git installed you can dowload the code as a .zip file by clicking on the green < > Code button at the upper right corner of the repo.
+
+Proceed to the next step either using **Mamba** or **Pixi** as your environment manager of choice.
+
+<img src="./assets/mamba_banner.png">
+
+1. Create a virtual environment (venv) either using the following command or recreate the environment from the .yml file you can find in the envs folder (step 2):
+
+   <code>mamba create -n int_organoids python=3.9 napari pytorch torchvision plotly pyqt ultralytics python-kaleido -c conda-forge -c pytorch</code>
+
+2. To recreate the venv from the environment.yml file stored in the envs folder (recommended) navigate into the envs folder using <code>cd envs</code> in your console and then execute:
+
+   <code>mamba env create -f environment.yml</code>
+
+3. (optional) If you want to automatically save the resulting .png graphs install kaleido in the venv using pip:
+
+   <code>mamba activate int_organoids</code>
+
+   <code>pip install kaleido</code>
+
+4. The easiest way to interact with the analysis code is via Jupyter Lab. To launch a jupyter lab server run the following commands:
 
    <code>mamba activate int_organoids</code>
 
    <code>jupyter lab</code>
 
-7. Open 1_image_analysis.ipynb, define your username and desired resolution for the output plates and run all the cells.
+<img src="./assets/pixi_banner.svg">
 
-8. You will find all the results under <code>.output/USERNAME</code>, to explore the extracted stats run 2_image_analysis.ipynb.
+|  | Watch on YouTube | Description |
+|-------|------------------|-------------|
+| <img src="./assets/pixi_thumbnail.png" width="170"> | [Pipeline installation using Pixi](https://youtu.be/tzdFuxF2E3U) | TL;DR You are busy in the wet lab and want to get your hands on in this tool and start using it ASAP.  |
+
+> [!TIP]
+> [Pixi](https://pixi.sh/latest/installation/) allows for fully reproducible environments by using .lock files. 
+
+After installing pixi, and cloning this repo type the command below. Once it is done installing your virtual environment it will launch a Jupyter Server in your browser so you can interact with the pipelines.
+
+<code>cd intestinal_organoid_yolov8 && pixi run lab</code>
+
+<h2>Usage instructions</h2>
+
+1. Open <code>1_image_analysis.ipynb</code>, define your username and desired resolution for the output plates and run all the cells.
+
+2. You will find all the results under <code>.output/USERNAME</code> 
+3. To explore the extracted stats run <code>2_image_analysis.ipynb</code>
+
+<h2>Materials and Methods: Image Analysis</h2>
+
+Brightfield `.tif` images were acquired as z-stacks per well and processed plate-wise using Python 3.9 (`pytorch` 2.5.0, `ultralytics`, `scikit-image`, `pandas`). Files were grouped by `well_id` extracted from EVOS-compatible filenames, excluding non-z-stack images. For each well, z-planes were collapsed by minimum-intensity projection and saved as one projection image per well.
+
+Instance segmentation was performed on each projection with a pretrained YOLOv8 model (`./models/GPU_1px_cle_eroded_labels.pt`) at confidence threshold 0.6, with classes `differentiated`, `undifferentiated`, and `dead`. Predicted instance masks were parsed per class and quantified with `skimage.measure.regionprops` to extract area, filled area, perimeter, circularity, eccentricity, and solidity for each object.
+
+Per-object measurements were exported as plate-level CSV files, then aggregated to well-level summaries by computing class counts, mean morphology descriptors, and derived ratios (`dead_ratio`, `organoid_ratio`, `spheroid_ratio`). The workflow also generated high-resolution whole-plate visualization maps for minimum projections and YOLO predictions.
+
+
+<h2>How to cite this pipeline</h2>
+
+If you are using this pipeline to analyze your bioimage data you can easily include it in your references following the instructions below:
+
+- For APA and BibTex style scroll to the top of this page, above the Release section and under About click on the cite this repository.
+
+- For APA, Harvard, MLA, Vancouver, Chicago and IEEE styles, visit [Zenodo]() and in the right panel at the bottom you will find the Citation section. [![DOI]()]()
+
+This is an example from APA, the most popular citation style:
+
+<code>Díez-Sánchez, A. (2026). adiezsanchez/intestinal_organoid_yolov8: ISiOS-BF-YOLO (v1.0.0). Zenodo. </code>
