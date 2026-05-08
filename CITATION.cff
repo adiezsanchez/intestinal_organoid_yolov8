@@ -4,8 +4,8 @@ authors:
 - family-names: "Díez-Sánchez"
   given-names: "Alberto"
   orcid: "https://orcid.org/0000-0001-5146-3089"
-title: "adiezsanchez/intestinal_organoid_yolov8: ISIS-BF-YOLO"
+title: "adiezsanchez/intestinal_organoid_yolov8: ISiOS-BF-YOLO"
 version: 1.0.0
-doi: 
+doi: "10.5281/zenodo.20085163"
 date-released: 2026-05-08
 url: "https://github.com/adiezsanchez/intestinal_organoid_yolov8"
