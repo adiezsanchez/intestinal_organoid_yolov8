@@ -84,6 +84,9 @@ After installing pixi, and cloning this repo type the command below. Once it is 
 
 <code>cd intestinal_organoid_yolov8 && pixi run lab</code>
 
+> [!WARNING]
+> If you run into an ImportError (i.e. DLL load failed while importing _imaging), run the postfix-windows-dll task by typing <code>pixi run postfix-windows-dell</code>. Restart the kernel and import the modules again, this will fix the issue.
+
 <h2>Usage instructions</h2>
 
 1. Open <code>1_image_analysis.ipynb</code>, define your username and desired resolution for the output plates and run all the cells.
@@ -102,7 +105,8 @@ Per-object measurements were exported as plate-level CSV files, then aggregated 
 
 <h2>How to cite this pipeline</h2>
 
-If you are using this pipeline to analyze your bioimage data you can easily include it in your references following the instructions below:
+> [!NOTE]
+> If you are using this pipeline to analyze your bioimage data you can easily include it in your references following the instructions below:
 
 - For APA and BibTex style scroll to the top of this page, above the Release section and under About click on the cite this repository.
 
