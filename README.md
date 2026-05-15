@@ -1,6 +1,6 @@
 <h1>Instance Segmentation of intestinal Organoids and Spheroids from BrightField images using YOLOv8 (ISiOS-BF-YOLO)</h1>
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20085163.svg)](https://doi.org/10.5281/zenodo.20085163)
+[![DOI](https://zenodo.org/badge/754672583.svg)](https://doi.org/10.5281/zenodo.20085162)
 [![License](https://img.shields.io/pypi/l/napari-accelerated-pixel-and-object-classification.svg?color=green)](https://github.com/adiezsanchez/intestinal_organoid_yolov8/blob/main/LICENSE)
 [![Development Status](https://img.shields.io/pypi/status/napari-accelerated-pixel-and-object-classification.svg)](https://en.wikipedia.org/wiki/Software_release_life_cycle#Alpha)
 
@@ -110,7 +110,7 @@ Per-object measurements were exported as plate-level CSV files, then aggregated 
 
 - For APA and BibTex style scroll to the top of this page, above the Release section and under About click on the cite this repository.
 
-- For APA, Harvard, MLA, Vancouver, Chicago and IEEE styles, visit [Zenodo](https://doi.org/10.5281/zenodo.20085163) and in the right panel at the bottom you will find the Citation section. [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20085163.svg)](https://doi.org/10.5281/zenodo.20085163)
+- For APA, Harvard, MLA, Vancouver, Chicago and IEEE styles, visit [Zenodo](https://doi.org/10.5281/zenodo.20085163) and in the right panel at the bottom you will find the Citation section. [![DOI](https://zenodo.org/badge/754672583.svg)](https://doi.org/10.5281/zenodo.20085162)
 
 This is an example from APA, the most popular citation style:
 
