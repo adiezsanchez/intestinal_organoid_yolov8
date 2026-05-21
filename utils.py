@@ -23,51 +23,105 @@ from skimage.measure import regionprops
 from skimage.color import rgb2gray
 from apoc import ObjectSegmenter, ObjectClassifier
 
+_IMAGE_SUFFIXES = {".tif", ".tiff", ".png"}
+_RESULTS_SUBDIRS = {"per_organoid_stats", "summary_stats"}
+
+
+def load_image(file_path):
+    """Load a microscopy image from TIF or PNG."""
+    file_path = Path(file_path)
+    if file_path.suffix.lower() in (".tif", ".tiff"):
+        return tifffile.imread(str(file_path), is_ome=False)
+    return io.imread(str(file_path))
+
+
+def ensure_rgb(image):
+    """Stack grayscale to 3 channels for RGB-only downstream steps (e.g. YOLO)."""
+    if image.ndim == 2:
+        return np.stack([image, image, image], axis=-1)
+    if image.ndim == 3 and image.shape[2] >= 3:
+        return image[..., :3]
+    raise ValueError(f"Unsupported image shape: {image.shape}")
+
 
 def read_images(directory_path):
     """Reads all the images in the input path and organizes them according to the well_id"""
-    # Define the directory containing your files
     directory_path = Path(directory_path)
-
-    # Initialize a dictionary to store the grouped (per well) files
     images_per_well = {}
 
-    # Iterate through the files in the directory
+    eligible = []
     for file_path in directory_path.glob("*"):
-        # Check if the path is a file and ends with ".TIF"
-        if file_path.is_file() and file_path.suffix.lower() == ".tif":
-            # Get the filename without the extension
-            filename = file_path.stem
-            # Remove unwanted files (Plate_R files)
-            if "Plate_R" in filename:
-                pass
-            # Remove maximum projections
-            elif "_z" not in filename:
-                pass
-            else:
-                # Extract the last part of the filename (e.g., A06f00d0)
-                last_part = filename.split("_")[-1]
+        if not file_path.is_file() or file_path.suffix.lower() not in _IMAGE_SUFFIXES:
+            continue
+        filename = file_path.stem
+        if "_z" not in filename:
+            continue
+        eligible.append(file_path)
 
-                # Get the first three letters to create the group name (well_id)
-                well_id = last_part[:3]
+    # Plate_R is grayscale; prefer RGB-like channels (Plate_M, Plate_D, …) when present.
+    use_plate_r = not any("Plate_R" not in p.stem for p in eligible)
 
-                # Check if the well_id exists in the dictionary, if not, create a new list
-                if well_id not in images_per_well:
-                    images_per_well[well_id] = []
+    for file_path in eligible:
+        filename = file_path.stem
+        if "Plate_R" in filename and not use_plate_r:
+            continue
 
-                # Append the file to the corresponding group
-                images_per_well[well_id].append(str(file_path))
+        last_part = filename.split("_")[-1]
+        well_id = last_part[:3]
+
+        if well_id not in images_per_well:
+            images_per_well[well_id] = []
+
+        images_per_well[well_id].append(str(file_path))
+
+    for well_id in images_per_well:
+        images_per_well[well_id].sort()
 
     return images_per_well
 
 
+def folder_has_z_stacks(directory_path):
+    """Return True if the folder contains EVOS z-slice images (Plate_D PNG, Plate_M TIF, etc.)."""
+    directory_path = Path(directory_path)
+    for file_path in directory_path.glob("*"):
+        if (
+            file_path.is_file()
+            and file_path.suffix.lower() in _IMAGE_SUFFIXES
+            and "_z" in file_path.stem
+        ):
+            return True
+    return False
+
+
+def list_plate_directories(data_folder, exclude_4x=True):
+    """List plate scan folders under a DATA_FOLDER (or return the folder itself if it is a plate)."""
+    data_folder = Path(data_folder)
+    if not data_folder.exists():
+        raise FileNotFoundError(f"DATA_FOLDER does not exist: {data_folder}")
+
+    if folder_has_z_stacks(data_folder):
+        return [data_folder]
+
+    plate_dirs = []
+    for subfolder in sorted(data_folder.iterdir()):
+        if not subfolder.is_dir():
+            continue
+        if exclude_4x and "4X" in subfolder.name:
+            continue
+        if folder_has_z_stacks(subfolder):
+            plate_dirs.append(subfolder)
+
+    if not plate_dirs:
+        raise FileNotFoundError(
+            f"No plate folders with z-stack images found under: {data_folder}"
+        )
+
+    return plate_dirs
+
+
 def min_intensity_projection(image_paths):
     """Takes a collection of image paths containing one z-stack per file and performs minimum intensity projection"""
-    # Load images from the specified paths
-    image_collection = io.ImageCollection(image_paths)
-    # Stack images into a single 3D numpy array
-    stack = io.concatenate_images(image_collection)
-    # Perform minimum intensity projection along the z-axis (axis=0)
+    stack = np.stack([ensure_rgb(load_image(p)) for p in image_paths], axis=0)
     min_proj = np.min(stack, axis=0)
 
     return min_proj
@@ -76,8 +130,10 @@ def min_intensity_projection(image_paths):
 def save_min_projection_imgs(images_per_well, output_dir="./output/MIN_projections"):
     """Takes a images_per_well from read_images as input, performs minimum intensity projection and saves the resulting image on a per well basis"""
     for well_id, files in images_per_well.items():
+        if not files:
+            continue
         # Perform minimum intensity projection of the stack stored under well_id key
-        min_proj = min_intensity_projection(images_per_well[well_id])
+        min_proj = min_intensity_projection(files)
 
         # Create a directory to store the tif files if it doesn't exist
         Path(output_dir).mkdir(parents=True, exist_ok=True)
@@ -157,6 +213,9 @@ def extract_stats(
 
         # Access the first position in the resulting YOLO results list
         result = results[0]
+        if result.masks is None or result.boxes is None or len(result.boxes) == 0:
+            continue
+
         extracted_masks = result.masks.data
 
         # Extract the boxes, which contain class IDs
@@ -232,7 +291,7 @@ def copy_csv_results(results_directory):
 
     # Iterate over subfolders in the results_directory and add them to subdirectories list
     for subfolder in results_directory.iterdir():
-        if subfolder.is_dir():
+        if subfolder.is_dir() and subfolder.name not in _RESULTS_SUBDIRS:
             subdirectories.append(subfolder.name)
 
     # Create the destination folder to copy the .csv files contained in each subdir
@@ -378,7 +437,7 @@ def find_focus(images_per_well):
                 nr_infocus_organoids[well_id] = []
 
             # Load one RGB image and transform it into grayscale (if needed) for APOC
-            rgb_img = tifffile.imread(input_img, is_ome=False)
+            rgb_img = load_image(input_img)
             if len(rgb_img.shape) < 3:
                 img = rgb_img
             elif rgb_img.shape[2] == 3:
@@ -489,14 +548,10 @@ def store_imgs(
             if 0 <= index < len(file_paths):
                 file_path = file_paths[index]
 
-                # Extract the file name (without the path), same as key
-                file_name = Path(file_path).name
-
                 # Construct the output file path
                 output_path = os.path.join(output_dir, f"{key}.tif")
 
-                # Copy the file using shutil.copy
-                shutil.copy(file_path, output_path)
+                tifffile.imwrite(output_path, load_image(file_path))
 
                 # print(f"Saved {key}.tif to {output_path}")
             # else:
@@ -511,11 +566,15 @@ def plot_plate(
     """Plot images in a grid-like fashion according to the well_id position in the plate"""
     import matplotlib.pyplot as plt
 
+    img_folder_path = Path(img_folder_path)
+    output_path = Path(output_path)
+
     # Initialize a dictionary to store images by rows (letters)
     image_dict = {}
 
     # Iterate through the image files in the folder
-    for filename in os.listdir(img_folder_path):
+    for image_path in sorted(img_folder_path.glob("*.tif")):
+        filename = image_path.name
         if filename.endswith(".tif"):
             # Extract the first letter and the number from the filename
             first_letter = filename[0]
@@ -540,6 +599,9 @@ def plot_plate(
 
     # Calculate the number of rows based on the number of letters
     num_rows = len(sorted_image_dict)
+
+    if not sorted_image_dict:
+        raise ValueError(f"No .tif well images found in: {img_folder_path}")
 
     # Calculate the number of columns based on the maximum number
     num_cols = max(max(images.keys()) for images in sorted_image_dict.values())
@@ -570,19 +632,21 @@ def plot_plate(
         for j, (number, filenames) in enumerate(images.items()):
             if filenames:
                 image_filename = filenames[0]  # Use the first filename in the list
-                image_path = os.path.join(img_folder_path, image_filename)
-                image = tifffile.imread(image_path, is_ome=False)
+                image = load_image(img_folder_path / image_filename)
+                show_kwargs = (
+                    {} if image.ndim == 3 and image.shape[2] >= 3 else {"cmap": colormap}
+                )
 
                 if num_rows == 1:
-                    axes[j].imshow(image, cmap=colormap)
+                    axes[j].imshow(image, **show_kwargs)
                     axes[j].set_title(f"{letter}{number:02d}")
                     axes[j].axis("off")
                 elif num_cols == 1:
-                    axes[i].imshow(image, cmap=colormap)
+                    axes[i].imshow(image, **show_kwargs)
                     axes[i].set_title(f"{letter}{number:02d}")
                     axes[i].axis("off")
                 else:
-                    axes[i, j].imshow(image, cmap=colormap)
+                    axes[i, j].imshow(image, **show_kwargs)
                     axes[i, j].set_title(f"{letter}{number:02d}")
                     axes[i, j].axis("off")
 
@@ -599,7 +663,9 @@ def plot_plate(
     plt.subplots_adjust(wspace=0.1, hspace=0.1)
 
     # Save the plot at a higher resolution
+    output_path.parent.mkdir(parents=True, exist_ok=True)
     plt.savefig(output_path, format="tif", dpi=resolution, bbox_inches="tight")
+    plt.close(fig)
 
     # If False plt.show() is not run to avoid loop stop upon display
     if show_fig:
@@ -611,7 +677,7 @@ def segment_organoids(in_focus_organoids):
     """Processes individual z-stacks inside a folder and returns a dictionary containing organoid object masks stored as StackViewNDArray arrays"""
 
     segmented_organoids = {}
-    images = list(in_focus_organoids.glob("*.TIF"))
+    images = sorted(in_focus_organoids.glob("*.tif"))
 
     # Iterate through the files in the directory
     for input_img in tqdm(images):
@@ -619,7 +685,7 @@ def segment_organoids(in_focus_organoids):
         filename = input_img.stem
 
         # Load one RGB image and transform it into grayscale (if needed) for APOC
-        rgb_img = tifffile.imread(input_img, is_ome=False)
+        rgb_img = load_image(input_img)
         if len(rgb_img.shape) < 3:
             img = rgb_img
         elif rgb_img.shape[2] == 3:
@@ -669,7 +735,7 @@ def segment_in_focus_organoids(in_focus_organoids):
     """Processes individual z-stacks inside a folder and returns a dictionary containing in-focus/out-of-focus organoid object masks stored as StackViewNDArray arrays"""
 
     focus_masks = {}
-    images = list(in_focus_organoids.glob("*.TIF"))
+    images = sorted(in_focus_organoids.glob("*.tif"))
 
     # Iterate through the files in the directory
     for input_img in tqdm(images):
@@ -677,7 +743,7 @@ def segment_in_focus_organoids(in_focus_organoids):
         filename = input_img.stem
 
         # Load one RGB image and transform it into grayscale (if needed) for APOC
-        rgb_img = tifffile.imread(input_img, is_ome=False)
+        rgb_img = load_image(input_img)
         if len(rgb_img.shape) < 3:
             img = rgb_img
         elif rgb_img.shape[2] == 3:
