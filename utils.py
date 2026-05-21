@@ -25,6 +25,16 @@ from apoc import ObjectSegmenter, ObjectClassifier
 
 _IMAGE_SUFFIXES = {".tif", ".tiff", ".png"}
 _RESULTS_SUBDIRS = {"per_organoid_stats", "summary_stats"}
+_ORGANOID_STAT_COLUMNS = [
+    "well_id",
+    "Class Name",
+    "Area",
+    "Area_filled",
+    "Perimeter",
+    "Circularity",
+    "Eccentricity",
+    "Solidity",
+]
 
 
 def load_image(file_path):
@@ -307,10 +317,8 @@ def extract_stats(
         # Extend all_props_list with the properties from this image
         all_props_list.extend(props_list)
 
-    # Convert the aggregated list of dictionaries to a DataFrame
-    all_props_df = pd.DataFrame(all_props_list)
+    all_props_df = pd.DataFrame(all_props_list, columns=_ORGANOID_STAT_COLUMNS)
 
-    # Now props_df contains the properties and class names for all regions
     return all_props_df
 
 
@@ -341,14 +349,23 @@ def copy_csv_results(results_directory):
         if subdirectory_path.exists():
             # Scan for .csv files in each subdirectory
             for file_path in subdirectory_path.glob("*.csv"):
-                # Copy the file to the destination subfolder
+                if file_path.stat().st_size == 0:
+                    continue
                 shutil.copy2(file_path, csv_results_path)
 
 
 def extract_summary_stats(csv_path):
     """Processes a per_organoid .csv results file counting the number of occurrences and calculate the average of each property returning a summary_stats_df"""
-    # Read the .csv into a pandas DataFrame
+    csv_path = Path(csv_path)
+    if csv_path.stat().st_size == 0:
+        print(f"Warning: skipping empty results file {csv_path.name}.")
+        return pd.DataFrame()
+
     df = pd.read_csv(csv_path)
+    if df.empty:
+        print(f"Warning: no detections in {csv_path.name}, skipping summary.")
+        return pd.DataFrame()
+
     df["Class Name"] = df["Class Name"].astype(str).str.strip().str.lower()
 
     # Grouping and counting occurrences
@@ -421,8 +438,6 @@ def extract_summary_stats(csv_path):
         live_count > 0, df_merged["nr_spheroids"] / live_count, 0
     )
 
-    # Extract the plate_name from the csv_path
-    csv_path = Path(csv_path)
     plate_name = csv_path.stem
 
     # Adding the new column 'plate_name' to the left of df_merged
@@ -439,18 +454,25 @@ def save_summary_stats(results_directory):
     # Initialize an empty DataFrame to collect all summary dataframes
     final_df = pd.DataFrame()
 
+    if not csv_results_path.exists():
+        print(f"Warning: no per_organoid_stats folder at {csv_results_path}.")
+        return
+
     # Scan for .csv files in each subdirectory
     for csv_path in csv_results_path.glob("*.csv"):
         summary_df = extract_summary_stats(csv_path)
-        # Append the summary_df to the final_df
+        if summary_df.empty:
+            continue
         final_df = pd.concat([final_df, summary_df], ignore_index=True)
 
-    # Create the summary_stats directory if it doesn't exist
     summary_stats_directory = Path(results_directory, "summary_stats")
     summary_stats_directory.mkdir(parents=True, exist_ok=True)
-
-    # Save the final_df as a .csv file under the summary_stats directory
     final_csv_path = summary_stats_directory / "summary_stats.csv"
+
+    if final_df.empty:
+        print("Warning: no summary stats to save (all plates had zero detections).")
+        return
+
     final_df.to_csv(final_csv_path, index=False)
 
 
