@@ -31,8 +31,40 @@ def load_image(file_path):
     """Load a microscopy image from TIF or PNG."""
     file_path = Path(file_path)
     if file_path.suffix.lower() in (".tif", ".tiff"):
-        return tifffile.imread(str(file_path), is_ome=False)
-    return io.imread(str(file_path))
+        img = tifffile.imread(str(file_path), is_ome=False)
+    else:
+        img = io.imread(str(file_path))
+        # Pillow loads 16-bit PNG as int32; keep uint16 for downstream scaling.
+        if img.dtype == np.int32:
+            img = img.astype(np.uint16)
+    return img
+
+
+def to_uint8_rgb(image):
+    """Convert grayscale or multi-channel image to contiguous uint8 RGB for YOLO/OpenCV."""
+    img = np.asarray(image)
+    if img.ndim == 2:
+        img = np.stack([img, img, img], axis=-1)
+    elif img.shape[-1] > 3:
+        img = img[..., :3]
+
+    if np.issubdtype(img.dtype, np.floating):
+        if img.max() <= 1.0:
+            img = (np.clip(img, 0, 1) * 255).astype(np.uint8)
+        else:
+            img = np.clip(img, 0, 255).astype(np.uint8)
+    elif img.dtype == np.uint16:
+        img = (img / 256).astype(np.uint8)
+    elif img.dtype != np.uint8:
+        img = img.astype(np.float64)
+        img -= img.min()
+        scale = img.max()
+        if scale > 0:
+            img = (img / scale * 255).astype(np.uint8)
+        else:
+            img = np.zeros_like(img, dtype=np.uint8)
+
+    return np.ascontiguousarray(img)
 
 
 def ensure_rgb(image):
@@ -121,10 +153,12 @@ def list_plate_directories(data_folder, exclude_4x=True):
 
 def min_intensity_projection(image_paths):
     """Takes a collection of image paths containing one z-stack per file and performs minimum intensity projection"""
-    stack = np.stack([ensure_rgb(load_image(p)) for p in image_paths], axis=0)
+    stack = np.stack(
+        [ensure_rgb(load_image(p)).astype(np.float32) for p in image_paths], axis=0
+    )
     min_proj = np.min(stack, axis=0)
 
-    return min_proj
+    return to_uint8_rgb(min_proj)
 
 
 def save_min_projection_imgs(images_per_well, output_dir="./output/MIN_projections"):
@@ -166,9 +200,8 @@ def predict_masks(
         # Get the filename without the extension
         filename = image_path.stem
 
-        results = model.predict(
-            image_path, conf=conf_threshold
-        )  # Adjust confidence (conf) threshold
+        image = to_uint8_rgb(load_image(image_path))
+        results = model.predict(image, conf=conf_threshold)
 
         im_array = results[0].plot(conf=False, labels=False, boxes=True, line_width=2)
 
@@ -206,10 +239,8 @@ def extract_stats(
         # Get the filename without the extension
         filename = image_path.stem
 
-        # Perform inference on the image stored in image_path
-        results = model.predict(
-            image_path, conf=conf_threshold
-        )  # Adjust confidence (conf) threshold
+        image = to_uint8_rgb(load_image(image_path))
+        results = model.predict(image, conf=conf_threshold)
 
         # Access the first position in the resulting YOLO results list
         result = results[0]
