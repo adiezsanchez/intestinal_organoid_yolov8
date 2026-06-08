@@ -1,6 +1,6 @@
 <h1>Instance Segmentation of intestinal Organoids and Spheroids from BrightField images using YOLOv8 (ISiOS-BF-YOLO)</h1>
 
-[![DOI](https://zenodo.org/badge/754672583.svg)](https://doi.org/10.5281/zenodo.20085162)
+[![DOI](https://img.shields.io/badge/DOI-10.5281/zenodo.20085162-blue.svg)](https://doi.org/10.5281/zenodo.20085162)
 [![License](https://img.shields.io/pypi/l/napari-accelerated-pixel-and-object-classification.svg?color=green)](https://github.com/adiezsanchez/intestinal_organoid_yolov8/blob/main/LICENSE)
 [![Development Status](https://img.shields.io/pypi/status/napari-accelerated-pixel-and-object-classification.svg)](https://en.wikipedia.org/wiki/Software_release_life_cycle#Alpha)
 
